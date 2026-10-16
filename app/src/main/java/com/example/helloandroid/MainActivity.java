@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+//実験
 public class MainActivity extends AppCompatActivity {
 
     private final String[][] words = {
