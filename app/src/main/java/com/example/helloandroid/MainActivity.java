@@ -318,10 +318,10 @@ public class MainActivity extends AppCompatActivity {
         setupScreen("quests");
         addTitle("🗺 QUEST SELECT", "クエストを選ぼう！");
 
-        addQuest("🌲 FOREST", "初級クエスト", 0, 13);
-        addQuest("🏔 CAVE", "中級クエスト", 1, 1000);
-        addQuest("🏰 CASTLE", "上級クエスト", 27, 39);
-        addQuest("👑 BOSS BATTLE", "全範囲から10問", 0, 39);
+        addQuest("🌲 FOREST", "初級クエスト", 1, 333);
+        addQuest("🏔 CAVE", "中級クエスト", 334, 666);
+        addQuest("🏰 CASTLE", "上級クエスト", 667, 1000);
+        addQuest("👑 BOSS BATTLE", "全範囲から10問", 1, 1000);
 
         addBackButton();
     }
@@ -340,8 +340,7 @@ public class MainActivity extends AppCompatActivity {
 
         b.setOnClickListener(v -> {
             questName = title;
-            startQuest(start, end,
-                    title.contains("BOSS") ? 10 : end - start + 1);
+            startQuest(start, end, title.contains("BOSS") ? 10 : 20);
         });
     }
 
