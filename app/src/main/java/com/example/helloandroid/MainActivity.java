@@ -93,12 +93,17 @@ public class MainActivity extends AppCompatActivity {
     private boolean answered;
     private String currentScreen = "home";
     private String questName = "冒険";
+    // ログインボーナス
+    private String lastLoginDate = "";
+    private int loginStreak = 0;
+    private boolean loginBonusReceived = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         prefs = getSharedPreferences("WordQuestData", MODE_PRIVATE);
+
         xp = prefs.getInt("xp", 0);
         totalCorrect = prefs.getInt("totalCorrect", 0);
         totalAnswered = prefs.getInt("totalAnswered", 0);
@@ -195,6 +200,40 @@ public class MainActivity extends AppCompatActivity {
                 .putInt("bestStreak", bestStreak)
                 .apply();
     }
+    // ログインボーナスの日付確認
+    private void checkLoginBonus() {
+
+        String today = new java.text.SimpleDateFormat(
+                "yyyyMMdd",
+                java.util.Locale.JAPAN
+        ).format(new java.util.Date());
+
+        if (!today.equals(lastLoginDate)) {
+
+            String yesterday = new java.text.SimpleDateFormat(
+                    "yyyyMMdd",
+                    java.util.Locale.JAPAN
+            ).format(new java.util.Date(
+                    System.currentTimeMillis()
+                            - 24 * 60 * 60 * 1000
+            ));
+
+            if (yesterday.equals(lastLoginDate)) {
+                loginStreak++;
+            } else {
+                loginStreak = 1;
+            }
+
+            lastLoginDate = today;
+            loginBonusReceived = false;
+
+            prefs.edit()
+                    .putString("lastLoginDate", lastLoginDate)
+                    .putInt("loginStreak", loginStreak)
+                    .putBoolean("loginBonusReceived", false)
+                    .apply();
+        }
+    }
 
     private int level() {
         return xp / 50 + 1;
@@ -235,6 +274,11 @@ public class MainActivity extends AppCompatActivity {
         Button record = makeButton("🏆 学習記録・実績");
         root.addView(record);
         record.setOnClickListener(v -> showStatus());
+        Button login = makeButton("🎁 ログインボーナス");
+        login.setBackground(round(PURPLE, 20));
+        root.addView(login);
+
+        login.setOnClickListener(v -> showLoginBonus());
     }
 
     // クエスト選択
@@ -621,5 +665,57 @@ public class MainActivity extends AppCompatActivity {
         } else {
             showHome();
         }
+    }
+    // ログインボーナス画面
+    private void showLoginBonus() {
+
+        setupScreen("loginBonus");
+
+        addTitle("🎁 LOGIN BONUS",
+                "今日の冒険者ボーナス！");
+
+        int bonus = loginStreak % 7 == 0 ? 100 : 20;
+
+        TextView reward = text(
+                "🔥 連続ログイン " + loginStreak + " 日目！"
+                        + "\n\n⭐ 今日の報酬"
+                        + "\n\n+" + bonus + " XP",
+                24, GOLD
+        );
+
+        reward.setPadding(20, 35, 20, 35);
+        reward.setBackground(round(PANEL, 22));
+        root.addView(reward, fullWidth());
+
+        Button receive = makeButton("🎁 ボーナスを受け取る");
+        receive.setBackground(round(PURPLE, 20));
+        root.addView(receive);
+
+        if (loginBonusReceived) {
+            receive.setText("✅ 受け取り済み");
+            receive.setEnabled(false);
+        }
+
+        receive.setOnClickListener(v -> {
+
+            if (loginBonusReceived) return;
+
+            xp += bonus;
+            loginBonusReceived = true;
+
+            prefs.edit()
+                    .putInt("xp", xp)
+                    .putBoolean("loginBonusReceived", true)
+                    .apply();
+
+            receive.setText("✅ 受け取り完了！");
+            receive.setEnabled(false);
+
+            Toast.makeText(this,
+                    "+" + bonus + " XP 獲得！",
+                    Toast.LENGTH_SHORT).show();
+        });
+
+        addBackButton();
     }
 }
