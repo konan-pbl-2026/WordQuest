@@ -97,6 +97,16 @@ public class MainActivity extends AppCompatActivity {
     private String lastLoginDate = "";
     private int loginStreak = 0;
     private boolean loginBonusReceived = false;
+    // デイリーミッション
+    private String missionDate = "";
+
+    private boolean missionForest = false;
+    private boolean missionCave = false;
+    private boolean missionCastle = false;
+    private boolean missionBoss = false;
+    private boolean missionStreak = false;
+
+    private int dailyStreak = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -117,7 +127,19 @@ public class MainActivity extends AppCompatActivity {
         totalAnswered = prefs.getInt("totalAnswered", 0);
         bestStreak = prefs.getInt("bestStreak", 0);
 
-        showHome();
+// デイリーミッション読み込み
+        missionDate = prefs.getString("missionDate", "");
+
+        missionForest = prefs.getBoolean("missionForest", false);
+        missionCave = prefs.getBoolean("missionCave", false);
+        missionCastle = prefs.getBoolean("missionCastle", false);
+        missionBoss = prefs.getBoolean("missionBoss", false);
+        missionStreak = prefs.getBoolean("missionStreak", false);
+
+        dailyStreak = prefs.getInt("dailyStreak", 0);
+
+        checkLoginBonus();
+        checkMissionReset();
 
         showHome();
     }
@@ -200,6 +222,48 @@ public class MainActivity extends AppCompatActivity {
                 .putInt("bestStreak", bestStreak)
                 .apply();
     }
+    // デイリーミッションの日付確認
+    private String getMissionToday() {
+        return new java.text.SimpleDateFormat(
+                "yyyyMMdd",
+                java.util.Locale.JAPAN
+        ).format(new java.util.Date());
+    }
+
+    // 日付が変わったらミッションをリセット
+    private void checkMissionReset() {
+
+        String today = getMissionToday();
+
+        if (!today.equals(missionDate)) {
+
+            missionDate = today;
+
+            missionForest = false;
+            missionCave = false;
+            missionCastle = false;
+            missionBoss = false;
+            missionStreak = false;
+
+            dailyStreak = 0;
+
+            saveMissionData();
+        }
+    }
+
+    // ミッションデータ保存
+    private void saveMissionData() {
+
+        prefs.edit()
+                .putString("missionDate", missionDate)
+                .putBoolean("missionForest", missionForest)
+                .putBoolean("missionCave", missionCave)
+                .putBoolean("missionCastle", missionCastle)
+                .putBoolean("missionBoss", missionBoss)
+                .putBoolean("missionStreak", missionStreak)
+                .putInt("dailyStreak", dailyStreak)
+                .apply();
+    }
     // ログインボーナスの日付確認
     private void checkLoginBonus() {
 
@@ -279,6 +343,12 @@ public class MainActivity extends AppCompatActivity {
         root.addView(login);
 
         login.setOnClickListener(v -> showLoginBonus());
+        // デイリーミッションボタン
+        Button daily = makeButton("🎯 デイリーミッション");
+        daily.setBackground(round(PURPLE, 20));
+        root.addView(daily);
+
+        daily.setOnClickListener(v -> showDailyMissions());
     }
 
     // クエスト選択
@@ -448,7 +518,10 @@ public class MainActivity extends AppCompatActivity {
 
     // 正誤判定
     private void checkAnswer(int selected) {
+
         if (answered) return;
+
+        checkMissionReset();
         answered = true;
         totalAnswered++;
 
@@ -458,6 +531,24 @@ public class MainActivity extends AppCompatActivity {
             correct++;
             totalCorrect++;
             streak++;
+            // デイリー7問連続正解
+            dailyStreak++;
+
+            if (dailyStreak >= 7 && !missionStreak) {
+
+                missionStreak = true;
+
+                xp += 30;
+                sessionXp += 30;
+
+                feedbackText.setText(
+                        "🔥 7問連続正解達成！ +30 XP"
+                );
+
+                Toast.makeText(this,
+                        "🎉 デイリーミッション達成！ +30 XP",
+                        Toast.LENGTH_SHORT).show();
+            }
 
             int earned = 10 + (streak % 3 == 0 ? 5 : 0);
 
@@ -477,7 +568,7 @@ public class MainActivity extends AppCompatActivity {
         } else {
             lives--;
             streak = 0;
-
+            dailyStreak = 0;
             feedbackText.setText(
                     "💥 不正解！ 正解："
                             + words[wi][1]
@@ -496,6 +587,7 @@ public class MainActivity extends AppCompatActivity {
 
         updateStats();
         saveData();
+        saveMissionData();
 
         if (lives <= 0 ||
                 index >= questionOrder.size() - 1) {
@@ -533,6 +625,52 @@ public class MainActivity extends AppCompatActivity {
 
         int total = questionOrder.size();
         int accuracy = correct * 100 / total;
+        // クエストクリア時のデイリーミッション判定
+        boolean questCleared = lives > 0;
+
+        if (questCleared) {
+
+            int reward = 0;
+            String message = "";
+
+            if (questName.contains("FOREST") && !missionForest) {
+
+                missionForest = true;
+                reward = 20;
+                message = "🌲 初級クエスト達成！";
+
+            } else if (questName.contains("CAVE") && !missionCave) {
+
+                missionCave = true;
+                reward = 30;
+                message = "🏔 中級クエスト達成！";
+
+            } else if (questName.contains("CASTLE") && !missionCastle) {
+
+                missionCastle = true;
+                reward = 40;
+                message = "🏰 上級クエスト達成！";
+
+            } else if (questName.contains("BOSS") && !missionBoss) {
+
+                missionBoss = true;
+                reward = 50;
+                message = "👑 ボスバトル達成！";
+            }
+
+            if (reward > 0) {
+
+                xp += reward;
+                sessionXp += reward;
+
+                Toast.makeText(this,
+                        message + " +" + reward + " XP",
+                        Toast.LENGTH_LONG).show();
+            }
+        }
+
+        saveData();
+        saveMissionData();
 
         TextView result = text(
                 "正解数：" + correct + " / " + total
@@ -626,30 +764,68 @@ public class MainActivity extends AppCompatActivity {
 
         addBackButton();
     }
-    private void loadWordsFromCSV(){
-        List<String[]> tempList = new ArrayList<>();
+    // デイリーミッション画面
+    private void showDailyMissions() {
 
-        try {
-            // assetsフォルダ内の words.csv を開く
-            InputStream is = getAssets().open("English Words.csv");
-            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-            String line;
+        checkMissionReset();
 
-            // 1行ずつ読み込む
-            while ((line = reader.readLine()) != null) {
-                // カンマで英単語と意味に分割 (2つにだけ分ける)
-                String[] parts = line.split(",", 2);
-                if (parts.length == 2) {
-                    // tempListに追加
-                    tempList.add(new String[]{parts[0].trim(), parts[1].trim()});
-                }
-            }
-            reader.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-            // 万が一読み込めなかった時のための予備データ
-            tempList.add(new String[]{"error", "エラー：単語が読み込めませんでした"});
-        }
+        setupScreen("daily");
+
+        addTitle("🎯 DAILY MISSIONS",
+                "今日の冒険者ミッション！");
+
+        addMission("🌲 初級クエストを1回クリア",
+                missionForest, 20);
+
+        addMission("🏔 中級クエストを1回クリア",
+                missionCave, 30);
+
+        addMission("🏰 上級クエストを1回クリア",
+                missionCastle, 40);
+
+        addMission("👑 ボスバトルを1回クリア",
+                missionBoss, 50);
+
+        addMission("🔥 7問連続正解する",
+                missionStreak, 30);
+
+        TextView reward = text(
+                "🎁 全ミッション達成！\n合計 170 XP",
+                21, GOLD
+        );
+
+        reward.setPadding(15, 25, 15, 25);
+        reward.setBackground(round(PANEL, 20));
+
+        root.addView(reward, fullWidth());
+
+        addBackButton();
+    }
+
+    // ミッション表示
+    private void addMission(
+            String name,
+            boolean completed,
+            int reward
+    ) {
+
+        TextView t = text(
+                (completed ? "✅ " : "🎯 ") + name
+                        + "\n\n報酬：" + reward + " XP"
+                        + "\n"
+                        + (completed ? "CLEAR!" : "未達成"),
+                16, completed ? GOLD : WHITE
+        );
+
+        t.setGravity(Gravity.CENTER);
+        t.setPadding(15, 20, 15, 20);
+        t.setBackground(round(PANEL, 18));
+
+        LinearLayout.LayoutParams p = fullWidth();
+        p.setMargins(0, 7, 0, 7);
+
+        root.addView(t, p);
+    }
 
         // List を String[][] に変換（既存のコードをそのまま動かすため）
         words = new String[tempList.size()][2];
