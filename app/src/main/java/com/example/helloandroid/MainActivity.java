@@ -18,53 +18,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.IOException;
 
 //実験
 public class MainActivity extends AppCompatActivity {
 
-    private final String[][] words = {
-            {"abandon", "捨てる、放棄する"},
-            {"abstract", "抽象的な"},
-            {"accurate", "正確な"},
-            {"acquire", "習得する、獲得する"},
-            {"adapt", "適応する"},
-            {"adequate", "十分な、適切な"},
-            {"advocate", "主張する、支持する"},
-            {"ambiguous", "曖昧な"},
-            {"analyze", "分析する"},
-            {"apparent", "明白な"},
-            {"approach", "取り組む、接近する"},
-            {"assess", "評価する"},
-            {"assume", "仮定する"},
-            {"attain", "達成する"},
-            {"beneficial", "有益な"},
-            {"capacity", "能力、収容能力"},
-            {"circumstance", "状況、事情"},
-            {"coherent", "一貫した"},
-            {"compensate", "補償する"},
-            {"complex", "複雑な"},
-            {"comprehensive", "包括的な"},
-            {"consequence", "結果、影響"},
-            {"considerable", "かなりの"},
-            {"constitute", "構成する"},
-            {"controversial", "議論を呼ぶ"},
-            {"conventional", "従来の"},
-            {"crucial", "極めて重要な"},
-            {"decline", "減少する、断る"},
-            {"demonstrate", "実証する"},
-            {"derive", "由来する、引き出す"},
-            {"diverse", "多様な"},
-            {"eliminate", "取り除く"},
-            {"emerge", "現れる"},
-            {"emphasize", "強調する"},
-            {"enable", "可能にする"},
-            {"encounter", "遭遇する"},
-            {"equivalent", "同等の"},
-            {"establish", "確立する"},
-            {"evaluate", "評価する"},
-            {"evident", "明らかな"}
-    };
-
+    private String[][] words;
     private final int BG = Color.rgb(17, 20, 42);
     private final int PANEL = Color.rgb(31, 36, 68);
     private final int PURPLE = Color.rgb(124, 92, 230);
@@ -132,6 +94,14 @@ public class MainActivity extends AppCompatActivity {
 
         checkLoginBonus();
         checkMissionReset();
+
+        loadWordsFromCSV();
+
+        prefs = getSharedPreferences("WordQuestData", MODE_PRIVATE);
+        xp = prefs.getInt("xp", 0);
+        totalCorrect = prefs.getInt("totalCorrect", 0);
+        totalAnswered = prefs.getInt("totalAnswered", 0);
+        bestStreak = prefs.getInt("bestStreak", 0);
 
         showHome();
     }
@@ -826,6 +796,38 @@ public class MainActivity extends AppCompatActivity {
             super.onBackPressed();
         } else {
             showHome();
+        }
+    }
+    private void loadWordsFromCSV() {
+        List<String[]> tempList = new ArrayList<>();
+
+        try {
+            // assetsフォルダ内の words.csv を開く
+            InputStream is = getAssets().open("English Words.csv");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+            String line;
+
+            // 1行ずつ読み込む
+            while ((line = reader.readLine()) != null) {
+                // カンマで英単語と意味に分割 (2つにだけ分ける)
+                String[] parts = line.split(",", 2);
+                if (parts.length == 2) {
+                    // tempListに追加
+                    tempList.add(new String[]{parts[0].trim(), parts[1].trim()});
+                }
+            }
+            reader.close();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            // 万が一読み込めなかった時のための予備データ
+            tempList.add(new String[]{"error", "エラー：単語が読み込めませんでした"});
+        }
+
+        // List を String[][] に変換（既存のコードをそのまま動かすため）
+        words = new String[tempList.size()][2];
+        for (int i = 0; i < tempList.size(); i++) {
+            words[i] = tempList.get(i);
         }
     }
     // ログインボーナス画面
