@@ -357,7 +357,7 @@ public class MainActivity extends AppCompatActivity {
         addTitle("🗺 QUEST SELECT", "クエストを選ぼう！");
 
         addQuest("🌲 FOREST", "初級クエスト", 0, 13);
-        addQuest("🏔 CAVE", "中級クエスト", 14, 26);
+        addQuest("🏔 CAVE", "中級クエスト", 1, 1000);
         addQuest("🏰 CASTLE", "上級クエスト", 27, 39);
         addQuest("👑 BOSS BATTLE", "全範囲から10問", 0, 39);
 
