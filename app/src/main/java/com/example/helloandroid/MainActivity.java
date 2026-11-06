@@ -18,14 +18,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.IOException;
 
+//実験
 public class MainActivity extends AppCompatActivity {
 
-    /*private final String[][] words = {
+    private final String[][] words = {
             {"abandon", "捨てる、放棄する"},
             {"abstract", "抽象的な"},
             {"accurate", "正確な"},
@@ -66,9 +63,7 @@ public class MainActivity extends AppCompatActivity {
             {"establish", "確立する"},
             {"evaluate", "評価する"},
             {"evident", "明らかな"}
-    };*/
-
-    private String[][] words;
+    };
 
     private final int BG = Color.rgb(17, 20, 42);
     private final int PANEL = Color.rgb(31, 36, 68);
@@ -119,13 +114,10 @@ public class MainActivity extends AppCompatActivity {
         totalAnswered = prefs.getInt("totalAnswered", 0);
         bestStreak = prefs.getInt("bestStreak", 0);
 
-        loadWordsFromCSV();
-
-        prefs = getSharedPreferences("WordQuestData", MODE_PRIVATE);
-        xp = prefs.getInt("xp", 0);
-        totalCorrect = prefs.getInt("totalCorrect", 0);
-        totalAnswered = prefs.getInt("totalAnswered", 0);
-        bestStreak = prefs.getInt("bestStreak", 0);
+        lastLoginDate = prefs.getString("lastLoginDate", "");
+        loginStreak = prefs.getInt("loginStreak", 0);
+        loginBonusReceived =
+                prefs.getBoolean("loginBonusReceived", false);
 
 // デイリーミッション読み込み
         missionDate = prefs.getString("missionDate", "");
@@ -827,12 +819,6 @@ public class MainActivity extends AppCompatActivity {
         root.addView(t, p);
     }
 
-        // List を String[][] に変換（既存のコードをそのまま動かすため）
-        words = new String[tempList.size()][2];
-        for (int i = 0; i < tempList.size(); i++) {
-            words[i] = tempList.get(i);
-        }
-    }
     // 戻るボタン
     @Override
     public void onBackPressed() {
