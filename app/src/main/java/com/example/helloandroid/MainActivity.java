@@ -658,9 +658,24 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // 単語図鑑
+    // 単語図鑑
     private void showDictionary() {
         setupScreen("dictionary");
-        addTitle("📖 WORD BOOK", "英単語40語");
+        addTitle("📖 WORD BOOK", "収録単語：全 " + words.length + " 語");
+        addBackButton();
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < words.length; i++) {
+            sb.append(i + 1).append(". ").append(words[i][0])
+                    .append("\n").append(words[i][1]).append("\n\n");
+        }
+
+        TextView wt = text(sb.toString(), 16, WHITE);
+        wt.setGravity(Gravity.START);
+        wt.setPadding(16, 20, 16, 20);
+        wt.setBackground(round(PANEL, 14));
+
+        root.addView(wt, fullWidth());
 
         for (int i = 0; i < words.length; i++) {
             TextView t = text(
@@ -677,8 +692,6 @@ public class MainActivity extends AppCompatActivity {
             p.setMargins(0, 4, 0, 4);
             root.addView(t, p);
         }
-
-        addBackButton();
     }
 
     // 学習記録
