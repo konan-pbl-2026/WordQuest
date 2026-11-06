@@ -18,11 +18,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.IOException;
 
-//実験
 public class MainActivity extends AppCompatActivity {
 
-    private final String[][] words = {
+    /*private final String[][] words = {
             {"abandon", "捨てる、放棄する"},
             {"abstract", "抽象的な"},
             {"accurate", "正確な"},
@@ -63,7 +66,9 @@ public class MainActivity extends AppCompatActivity {
             {"establish", "確立する"},
             {"evaluate", "評価する"},
             {"evident", "明らかな"}
-    };
+    };*/
+
+    private String[][] words;
 
     private final int BG = Color.rgb(17, 20, 42);
     private final int PANEL = Color.rgb(31, 36, 68);
@@ -98,6 +103,16 @@ public class MainActivity extends AppCompatActivity {
         totalCorrect = prefs.getInt("totalCorrect", 0);
         totalAnswered = prefs.getInt("totalAnswered", 0);
         bestStreak = prefs.getInt("bestStreak", 0);
+
+        loadWordsFromCSV();
+
+        prefs = getSharedPreferences("WordQuestData", MODE_PRIVATE);
+        xp = prefs.getInt("xp", 0);
+        totalCorrect = prefs.getInt("totalCorrect", 0);
+        totalAnswered = prefs.getInt("totalAnswered", 0);
+        bestStreak = prefs.getInt("bestStreak", 0);
+
+        showHome();
 
         showHome();
     }
@@ -567,7 +582,37 @@ public class MainActivity extends AppCompatActivity {
 
         addBackButton();
     }
+    private void loadWordsFromCSV(){
+        List<String[]> tempList = new ArrayList<>();
 
+        try {
+            // assetsフォルダ内の words.csv を開く
+            InputStream is = getAssets().open("English Words.csv");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+            String line;
+
+            // 1行ずつ読み込む
+            while ((line = reader.readLine()) != null) {
+                // カンマで英単語と意味に分割 (2つにだけ分ける)
+                String[] parts = line.split(",", 2);
+                if (parts.length == 2) {
+                    // tempListに追加
+                    tempList.add(new String[]{parts[0].trim(), parts[1].trim()});
+                }
+            }
+            reader.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            // 万が一読み込めなかった時のための予備データ
+            tempList.add(new String[]{"error", "エラー：単語が読み込めませんでした"});
+        }
+
+        // List を String[][] に変換（既存のコードをそのまま動かすため）
+        words = new String[tempList.size()][2];
+        for (int i = 0; i < tempList.size(); i++) {
+            words[i] = tempList.get(i);
+        }
+    }
     // 戻るボタン
     @Override
     public void onBackPressed() {
