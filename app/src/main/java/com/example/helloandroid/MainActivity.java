@@ -72,6 +72,7 @@ public class MainActivity extends AppCompatActivity {
     private int totalCorrect, totalAnswered, bestStreak;
     private boolean answered;
     private String currentScreen = "home";
+    private boolean devXpVisible = false;
     private String questName = "冒険";
 
     // ログインボーナス
@@ -491,6 +492,26 @@ public class MainActivity extends AppCompatActivity {
         gridContainer.addView(row3);
 
         root.addView(gridContainer);
+        // 開発者用：デバッグ実行時だけ表示
+        if (devXpVisible && (getApplicationInfo().flags
+                & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+
+            Button devXpButton = makeButton("開発者用：+1000 XP");
+            devXpButton.setBackground(round(TEAL, 18));
+            root.addView(devXpButton);
+
+            devXpButton.setOnClickListener(v -> {
+                xp += 1000;
+                saveData();  // XPを保存
+                showHome();  // XP・レベル表示を更新
+
+                Toast.makeText(
+                        this,
+                        "開発者用：1000 XPを追加しました！",
+                        Toast.LENGTH_SHORT
+                ).show();
+            });
+        }
     }
 
     // 縦3段の均等な行コンテナを作成
@@ -1442,6 +1463,30 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout.LayoutParams p = fullWidth();
         p.setMargins(0, 7, 0, 7);
         root.addView(t, p);
+    }
+
+    // 開発者用：音量を下げるキーでXPボタンを切り替える
+    @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent event) {
+        boolean isDebug = (getApplicationInfo().flags
+                & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+
+        if (isDebug
+                && "home".equals(currentScreen)
+                && event.getKeyCode()
+                == android.view.KeyEvent.KEYCODE_VOLUME_DOWN) {
+
+            // 長押しによる連続切り替えを防ぐ
+            if (event.getAction() == android.view.KeyEvent.ACTION_DOWN
+                    && event.getRepeatCount() == 0) {
+                devXpVisible = !devXpVisible;
+                showHome();
+            }
+
+            return true;
+        }
+
+        return super.dispatchKeyEvent(event);
     }
 
     // 戻るボタン
