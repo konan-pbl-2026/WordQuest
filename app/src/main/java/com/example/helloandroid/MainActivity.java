@@ -7,7 +7,6 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
-import android.view.SoundEffectConstants;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -19,8 +18,10 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -34,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
     private final int PURPLE = Color.rgb(124, 92, 230);
     private final int GOLD = Color.rgb(255, 202, 87);
     private final int WHITE = Color.rgb(245, 245, 255);
+    private final int TEAL = Color.rgb(35, 125, 91);
 
     private final Random random = new Random();
     private SharedPreferences prefs;
@@ -54,6 +56,9 @@ public class MainActivity extends AppCompatActivity {
     private int enemyHp;
     private int enemyMaxHp;
     private int enemiesDefeated;
+    // クイズ中のアイテムボタン
+    private Button btnUsePotion, btnUseFifty, btnUseSkip;
+    private boolean fiftyUsedInThisQuestion = false;
 
     private List<Integer> questionOrder = new ArrayList<>();
     private String[] options = new String[4];
@@ -82,6 +87,31 @@ public class MainActivity extends AppCompatActivity {
     private String playerName = "名もなき冒険者";
     private String playerGoal = "毎日コツコツ単語を覚える！";
     private String playerIcon = "⚔️";
+    private String equippedTitle = "AUTO"; // "AUTO"の場合はレベル称号、それ以外は特別称号
+
+    // ガチャデータ（レアアイコン＆特別称号）
+    private final String[] RARE_ICONS = {"🦄", "🦖", "🤖", "👽", "💎"};
+    private final String[] RARE_ICON_NAMES = {
+            "🦄 ユニコーン",
+            "🦖 ティラノサウルス",
+            "🤖 ロボット",
+            "👽 宇宙人",
+            "💎 ダイヤの王冠"
+    };
+    private final String[] RARE_TITLES = {
+            "⚡ 神速の英単語ハンター",
+            "🌙 眠らぬ夜の探究者",
+            "🔥 不屈のチャレンジャー",
+            "🌌 異次元の語彙マスター",
+            "🍀 奇跡を呼ぶ大冒険者"
+    };
+    private Set<String> unlockedIcons = new HashSet<>();
+    private Set<String> unlockedTitles = new HashSet<>();
+
+    // お助けアイテム（所持数）
+    private int itemPotion = 0; // 回復薬
+    private int itemFifty = 0;  // 50/50
+    private int itemSkip = 0;   // スキップの巻物
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -111,6 +141,16 @@ public class MainActivity extends AppCompatActivity {
         playerName = prefs.getString("playerName", "名もなき冒険者");
         playerGoal = prefs.getString("playerGoal", "毎日コツコツ単語を覚える！");
         playerIcon = prefs.getString("playerIcon", "⚔️");
+        equippedTitle = prefs.getString("equippedTitle", "AUTO");
+
+        // ガチャ解放データ読み込み
+        unlockedIcons = new HashSet<>(prefs.getStringSet("unlockedIcons", new HashSet<>()));
+        unlockedTitles = new HashSet<>(prefs.getStringSet("unlockedTitles", new HashSet<>()));
+
+        // アイテム所持数読み込み
+        itemPotion = prefs.getInt("itemPotion", 0);
+        itemFifty = prefs.getInt("itemFifty", 0);
+        itemSkip = prefs.getInt("itemSkip", 0);
 
         checkLoginBonus();
         checkMissionReset();
@@ -139,6 +179,15 @@ public class MainActivity extends AppCompatActivity {
         GradientDrawable d = new GradientDrawable();
         d.setColor(color);
         d.setCornerRadius(radius);
+        return d;
+    }
+
+    // 枠線付きの角丸背景
+    private GradientDrawable roundWithStroke(int color, int radius, int strokeColor, int strokeWidth) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(color);
+        d.setCornerRadius(radius);
+        d.setStroke(strokeWidth, strokeColor);
         return d;
     }
 
@@ -205,6 +254,17 @@ public class MainActivity extends AppCompatActivity {
                 .putInt("totalCorrect", totalCorrect)
                 .putInt("totalAnswered", totalAnswered)
                 .putInt("bestStreak", bestStreak)
+                .apply();
+    }
+
+    private void saveItemsAndGacha() {
+        prefs.edit()
+                .putInt("xp", xp)
+                .putInt("itemPotion", itemPotion)
+                .putInt("itemFifty", itemFifty)
+                .putInt("itemSkip", itemSkip)
+                .putStringSet("unlockedIcons", unlockedIcons)
+                .putStringSet("unlockedTitles", unlockedTitles)
                 .apply();
     }
 
@@ -283,68 +343,168 @@ public class MainActivity extends AppCompatActivity {
         return xp / 50 + 1;
     }
 
-    // ホーム画面
+    // ホーム画面（統合冒険者カード ＋ 画面いっぱいの縦3×横2タイルメニュー）
     private void showHome() {
         setupScreen("home");
 
-        // 左上にプロフィールボタンを配置
-        Button profile = makeButton(playerIcon + " " + playerName);
-        profile.setTextSize(14);
-        profile.setPadding(24, 12, 24, 12);
-        profile.setBackground(round(PANEL, 30));
+        // 1. 最上部の統合冒険者カード（プロフィール ＋ ステータス横並び）
+        LinearLayout topCard = new LinearLayout(this);
+        topCard.setOrientation(LinearLayout.HORIZONTAL);
+        topCard.setGravity(Gravity.CENTER_VERTICAL);
+        topCard.setPadding(16, 12, 16, 12);
+        topCard.setBackground(roundWithStroke(Color.rgb(22, 26, 52), 20, GOLD, 2));
 
-        LinearLayout.LayoutParams profileParams = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams topCardParams = fullWidth();
+        topCardParams.setMargins(0, 0, 0, 14);
+        topCard.setLayoutParams(topCardParams);
+
+        // 左：プロフィールボタン（アイコンを大きく強調）
+        LinearLayout profilePill = new LinearLayout(this);
+        profilePill.setOrientation(LinearLayout.HORIZONTAL);
+        profilePill.setGravity(Gravity.CENTER_VERTICAL);
+        profilePill.setPadding(18, 8, 22, 8);
+        profilePill.setBackground(round(PANEL, 16));
+        profilePill.setOnClickListener(v -> showProfile());
+
+        TextView pIconView = new TextView(this);
+        pIconView.setText(playerIcon);
+        pIconView.setTextSize(24);
+        pIconView.setPadding(0, 0, 10, 0);
+        profilePill.addView(pIconView);
+
+        TextView pNameView = new TextView(this);
+        pNameView.setText(playerName);
+        pNameView.setTextSize(14);
+        pNameView.setTextColor(WHITE);
+        pNameView.setTypeface(null, Typeface.BOLD);
+        profilePill.addView(pNameView);
+
+        topCard.addView(profilePill);
+
+        // 右：コンパクトステータス
+        TextView miniStats = new TextView(this);
+        miniStats.setText("🛡 Lv." + level() + "  |  ⭐ " + xp + " XP\n🏆 正解 : " + totalCorrect + " 問");
+        miniStats.setTextSize(13);
+        miniStats.setTextColor(WHITE);
+        miniStats.setGravity(Gravity.END);
+        LinearLayout.LayoutParams miniStatsParams = new LinearLayout.LayoutParams(
+                0,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
+                1.0f
         );
-        profileParams.gravity = Gravity.START;
-        profileParams.setMargins(0, 0, 0, 10);
-        profile.setLayoutParams(profileParams);
+        miniStats.setLayoutParams(miniStatsParams);
+        topCard.addView(miniStats);
 
-        root.addView(profile);
-        profile.setOnClickListener(v -> showProfile());
+        root.addView(topCard);
 
-        TextView castle = text("🏰", 65, GOLD);
-        castle.setPadding(0, 15, 0, 20);
+        // 2. お城シンボル＆タイトル
+        TextView castle = text("🏰", 80, GOLD);
+        castle.setPadding(0, 0, 0, 4);
         root.addView(castle);
 
-        addTitle("⚔ WORD QUEST ⚔",
-                "英単語を極め、伝説の冒険者になれ。");
+        TextView title = text("⚔ WORD QUEST ⚔", 26, GOLD);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(0, 2, 0, 2);
+        root.addView(title, fullWidth());
 
-        TextView stats = text(
-                "🛡 冒険者 Lv." + level()
-                        + "\n⭐ TOTAL XP : " + xp
-                        + "\n🏆 正解した問題 : " + totalCorrect,
-                18, WHITE
-        );
+        TextView subtitle = text("英単語を極め、伝説の冒険者になれ。", 12, WHITE);
+        subtitle.setPadding(0, 0, 0, 14);
+        root.addView(subtitle, fullWidth());
 
-        stats.setPadding(16, 24, 16, 24);
-        stats.setBackground(round(PANEL, 22));
-        root.addView(stats, fullWidth());
-
-        Button start = makeButton("⚔ 冒険を始める");
-        start.setTextSize(19);
-        start.setBackground(round(PURPLE, 20));
+        // 3. メインアクションボタン（冒険を始める）
+        Button start = makeButton("⚔  冒険を始める");
+        start.setTextSize(20);
+        start.setTypeface(null, Typeface.BOLD);
+        start.setPadding(0, 24, 0, 24);
+        start.setBackground(round(PURPLE, 22));
+        LinearLayout.LayoutParams startParams = fullWidth();
+        startParams.setMargins(0, 0, 0, 14);
+        start.setLayoutParams(startParams);
         root.addView(start);
         start.setOnClickListener(v -> showQuestSelect());
 
-        Button book = makeButton("📖 単語図鑑");
-        root.addView(book);
-        book.setOnClickListener(v -> showDictionary());
+        // 4. 画面いっぱいに広がる 縦3段 × 横2列のタイルグリッドメニュー
+        LinearLayout gridContainer = new LinearLayout(this);
+        gridContainer.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams gridParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1.0f
+        );
+        gridContainer.setLayoutParams(gridParams);
 
-        Button record = makeButton("🏆 学習記録・実績");
-        root.addView(record);
-        record.setOnClickListener(v -> showStatus());
+        String loginBadge = !loginBonusReceived ? " ✨" : "";
 
-        Button login = makeButton("🎁 ログインボーナス");
-        login.setBackground(round(PURPLE, 20));
-        root.addView(login);
-        login.setOnClickListener(v -> showLoginBonus());
+        // 1段目：ログボ / ミッション
+        LinearLayout row1 = makeGridRow(true);
+        row1.addView(makeTileButton("🎁", "ログボ" + loginBadge, v -> showLoginBonus()));
+        row1.addView(makeTileButton("🎯", "ミッション", v -> showDailyMissions()));
+        gridContainer.addView(row1);
 
-        Button daily = makeButton("🎯 デイリーミッション");
-        daily.setBackground(round(PURPLE, 20));
-        root.addView(daily);
-        daily.setOnClickListener(v -> showDailyMissions());
+        // 2段目：ガチャ / ショップ
+        LinearLayout row2 = makeGridRow(true);
+        row2.addView(makeTileButton("🎰", "ガチャ", v -> showGacha()));
+        row2.addView(makeTileButton("🛒", "ショップ", v -> showShop()));
+        gridContainer.addView(row2);
+
+        // 3段目：単語図鑑 / 学習記録
+        LinearLayout row3 = makeGridRow(false);
+        row3.addView(makeTileButton("📖", "単語図鑑", v -> showDictionary()));
+        row3.addView(makeTileButton("🏆", "学習記録", v -> showStatus()));
+        gridContainer.addView(row3);
+
+        root.addView(gridContainer);
+    }
+
+    // 縦3段の均等な行コンテナを作成
+    private LinearLayout makeGridRow(boolean hasBottomMargin) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1.0f
+        );
+        if (hasBottomMargin) {
+            p.setMargins(0, 0, 0, 12);
+        }
+        row.setLayoutParams(p);
+        return row;
+    }
+
+    // 横2列グリッド用のタイルボタンを作成（画面いっぱいに広がる高さ＆大きなアイコン）
+    private LinearLayout makeTileButton(String emoji, String label, android.view.View.OnClickListener listener) {
+        LinearLayout tile = new LinearLayout(this);
+        tile.setOrientation(LinearLayout.VERTICAL);
+        tile.setGravity(Gravity.CENTER);
+        tile.setPadding(8, 12, 8, 12);
+        tile.setBackground(roundWithStroke(PANEL, 22, Color.rgb(52, 60, 105), 2));
+
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                1.0f
+        );
+        p.setMargins(6, 0, 6, 0);
+        tile.setLayoutParams(p);
+
+        TextView iconView = new TextView(this);
+        iconView.setText(emoji);
+        iconView.setTextSize(54);
+        iconView.setGravity(Gravity.CENTER);
+        iconView.setPadding(0, 0, 0, 6);
+        tile.addView(iconView);
+
+        TextView labelView = new TextView(this);
+        labelView.setText(label);
+        labelView.setTextSize(16);
+        labelView.setTextColor(WHITE);
+        labelView.setTypeface(null, Typeface.BOLD);
+        labelView.setGravity(Gravity.CENTER);
+        tile.addView(labelView);
+
+        tile.setOnClickListener(listener);
+        return tile;
     }
 
     // クエスト選択
@@ -484,6 +644,26 @@ public class MainActivity extends AppCompatActivity {
             );
         }
 
+        // お助けアイテム使用エリア
+        TextView itemHeader = text("🎒 お助けアイテム", 14, GOLD);
+        itemHeader.setPadding(0, 16, 0, 4);
+        root.addView(itemHeader);
+
+        btnUsePotion = makeButton("");
+        btnUsePotion.setBackground(round(TEAL, 14));
+        root.addView(btnUsePotion);
+        btnUsePotion.setOnClickListener(v -> usePotion());
+
+        btnUseFifty = makeButton("");
+        btnUseFifty.setBackground(round(TEAL, 14));
+        root.addView(btnUseFifty);
+        btnUseFifty.setOnClickListener(v -> useFiftyFifty());
+
+        btnUseSkip = makeButton("");
+        btnUseSkip.setBackground(round(TEAL, 14));
+        root.addView(btnUseSkip);
+        btnUseSkip.setOnClickListener(v -> useSkipScroll());
+
         feedbackText = text("", 15, GOLD);
         feedbackText.setPadding(0, 15, 0, 15);
         root.addView(feedbackText);
@@ -524,6 +704,7 @@ public class MainActivity extends AppCompatActivity {
 
         updateEnemyDisplay();
 
+        fiftyUsedInThisQuestion = false;
         int wi = questionOrder.get(index);
 
         wordText.setText(words[wi][0]);
@@ -564,6 +745,85 @@ public class MainActivity extends AppCompatActivity {
 
         nextButton.setText("次の問題 →");
         updateStats();
+        updateItemButtons();
+    }
+
+    // アイテムボタンの表示と有効/無効更新
+    private void updateItemButtons() {
+        btnUsePotion.setText("❤️ 回復薬を使う (所持: " + itemPotion + ")");
+        btnUsePotion.setEnabled(itemPotion > 0 && lives < 3 && lives > 0);
+        btnUsePotion.setAlpha(btnUsePotion.isEnabled() ? 1.0f : 0.45f);
+
+        btnUseFifty.setText("🔍 50/50を使う (所持: " + itemFifty + ")");
+        btnUseFifty.setEnabled(itemFifty > 0 && !answered && !fiftyUsedInThisQuestion);
+        btnUseFifty.setAlpha(btnUseFifty.isEnabled() ? 1.0f : 0.45f);
+
+        btnUseSkip.setText("⏭️ スキップの巻物を使う (所持: " + itemSkip + ")");
+        btnUseSkip.setEnabled(itemSkip > 0 && !answered);
+        btnUseSkip.setAlpha(btnUseSkip.isEnabled() ? 1.0f : 0.45f);
+    }
+
+    // アイテム1: 回復薬
+    private void usePotion() {
+        if (itemPotion <= 0 || lives >= 3) return;
+        itemPotion--;
+        lives++;
+        saveItemsAndGacha();
+        updateStats();
+        updateItemButtons();
+        Toast.makeText(this, "❤️ ライフが1つ回復した！", Toast.LENGTH_SHORT).show();
+    }
+
+    // アイテム2: 50/50
+    private void useFiftyFifty() {
+        if (itemFifty <= 0 || answered || fiftyUsedInThisQuestion) return;
+        itemFifty--;
+        fiftyUsedInThisQuestion = true;
+        saveItemsAndGacha();
+
+        int wi = questionOrder.get(index);
+        String correctAnswer = words[wi][1];
+
+        List<Integer> wrongIndices = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            if (!options[i].equals(correctAnswer)) {
+                wrongIndices.add(i);
+            }
+        }
+        Collections.shuffle(wrongIndices);
+
+        // ハズレを2つ無効化
+        for (int i = 0; i < 2; i++) {
+            int idx = wrongIndices.get(i);
+            answerButtons[idx].setEnabled(false);
+            answerButtons[idx].setText("✕  ---");
+            answerButtons[idx].setBackground(round(Color.rgb(22, 25, 48), 14));
+        }
+
+        updateItemButtons();
+        Toast.makeText(this, "🔍 ハズレの選択肢を2つ消去した！", Toast.LENGTH_SHORT).show();
+    }
+
+    // アイテム3: スキップの巻物
+    private void useSkipScroll() {
+        if (itemSkip <= 0 || answered) return;
+        itemSkip--;
+        saveItemsAndGacha();
+
+        answered = true;
+        int wi = questionOrder.get(index);
+        feedbackText.setText("⏭️ 問題をスキップ！ 正解：" + words[wi][1]);
+
+        for (Button b : answerButtons) {
+            b.setEnabled(false);
+        }
+
+        updateItemButtons();
+
+        if (index >= questionOrder.size() - 1) {
+            nextButton.setText("結果を見る 🏆");
+        }
+        Toast.makeText(this, "⏭️ スキップの巻物を使った！", Toast.LENGTH_SHORT).show();
     }
 
     // 正誤判定
@@ -604,7 +864,7 @@ public class MainActivity extends AppCompatActivity {
             );
 
             answerButtons[selected].setBackground(
-                    round(Color.rgb(35, 125, 91), 14)
+                    round(TEAL, 14)
             );
 
         } else {
@@ -628,6 +888,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         updateStats();
+        updateItemButtons();
         saveData();
         saveMissionData();
 
@@ -746,6 +1007,179 @@ public class MainActivity extends AppCompatActivity {
         book.setOnClickListener(v -> showDictionary());
 
         addBackButton();
+    }
+
+    // アイテムショップ画面
+    private void showShop() {
+        setupScreen("shop");
+        addTitle("🛒 ITEM SHOP", "XPでお助けアイテムを購入しよう！");
+
+        TextView xpView = text("⭐ 現在の所持 XP : " + xp, 20, GOLD);
+        xpView.setPadding(16, 18, 16, 18);
+        xpView.setBackground(round(PANEL, 18));
+        root.addView(xpView, fullWidth());
+
+        addShopItem(
+                "❤️ 回復薬（ポーション）",
+                "クエスト中に減ったライフを1つ回復する",
+                50,
+                itemPotion,
+                () -> {
+                    itemPotion++;
+                    saveItemsAndGacha();
+                    showShop();
+                }
+        );
+
+        addShopItem(
+                "🔍 50/50（フィフティ・フィフティ）",
+                "4択のうちハズレを2つ消して2択にする",
+                80,
+                itemFifty,
+                () -> {
+                    itemFifty++;
+                    saveItemsAndGacha();
+                    showShop();
+                }
+        );
+
+        addShopItem(
+                "⏭️ スキップの巻物",
+                "どうしても分からない問題を1問パスする",
+                60,
+                itemSkip,
+                () -> {
+                    itemSkip++;
+                    saveItemsAndGacha();
+                    showShop();
+                }
+        );
+
+        addBackButton();
+    }
+
+    private void addShopItem(String name, String desc, int cost, int owned, Runnable onBuy) {
+        TextView card = text(
+                name + "\n" + desc + "\n\n所持数: " + owned + " 個",
+                15, WHITE
+        );
+        card.setPadding(16, 18, 16, 18);
+        card.setBackground(round(PANEL, 18));
+        LinearLayout.LayoutParams p = fullWidth();
+        p.setMargins(0, 12, 0, 4);
+        root.addView(card, p);
+
+        Button buyBtn = makeButton("💰 " + cost + " XP で購入する");
+        buyBtn.setBackground(round(PURPLE, 16));
+        root.addView(buyBtn);
+
+        buyBtn.setOnClickListener(v -> {
+            if (xp < cost) {
+                Toast.makeText(this, "XPが足りません！", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            xp -= cost;
+            onBuy.run();
+            Toast.makeText(this, name + " を購入しました！", Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    // レアアイコン＆特別称号ガチャ画面
+    private void showGacha() {
+        setupScreen("gacha");
+        addTitle("🎰 ADVENTURER GACHA", "レアアイコン＆特別称号を手に入れろ！");
+
+        int totalItems = RARE_ICONS.length + RARE_TITLES.length;
+        int unlockedCount = unlockedIcons.size() + unlockedTitles.size();
+
+        TextView statusCard = text(
+                "⭐ 現在の所持 XP : " + xp
+                        + "\n🎁 コンプリート率 : " + unlockedCount + " / " + totalItems,
+                18, GOLD
+        );
+        statusCard.setPadding(16, 20, 16, 20);
+        statusCard.setBackground(round(PANEL, 20));
+        root.addView(statusCard, fullWidth());
+
+        Button pullBtn = makeButton("🎰 1回ガチャを回す (100 XP)");
+        pullBtn.setTextSize(18);
+        pullBtn.setBackground(round(Color.rgb(180, 110, 30), 20));
+        LinearLayout.LayoutParams btnParams = fullWidth();
+        btnParams.setMargins(0, 16, 0, 16);
+        pullBtn.setLayoutParams(btnParams);
+        root.addView(pullBtn);
+
+        pullBtn.setOnClickListener(v -> spinGacha());
+
+        // 排出ラインナップ一覧
+        StringBuilder listSb = new StringBuilder("【 排出ラインナップ 】\n\n");
+        listSb.append("▼ レアアイコン\n");
+        for (int i = 0; i < RARE_ICONS.length; i++) {
+            boolean has = unlockedIcons.contains(RARE_ICONS[i]);
+            listSb.append(has ? "✅ " : "🔒 ").append(RARE_ICON_NAMES[i]).append("\n");
+        }
+        listSb.append("\n▼ 特別称号\n");
+        for (String title : RARE_TITLES) {
+            boolean has = unlockedTitles.contains(title);
+            listSb.append(has ? "✅ " : "🔒 ").append(title).append("\n");
+        }
+
+        TextView listView = text(listSb.toString(), 15, WHITE);
+        listView.setGravity(Gravity.START);
+        listView.setPadding(20, 20, 20, 20);
+        listView.setBackground(round(PANEL, 18));
+        root.addView(listView, fullWidth());
+
+        addBackButton();
+    }
+
+    private void spinGacha() {
+        int cost = 100;
+        if (xp < cost) {
+            Toast.makeText(this, "XPが足りません！（100 XP必要）", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 未所持の候補リストを作成
+        List<String> lockedPool = new ArrayList<>();
+        for (int i = 0; i < RARE_ICONS.length; i++) {
+            if (!unlockedIcons.contains(RARE_ICONS[i])) {
+                lockedPool.add("ICON:" + i);
+            }
+        }
+        for (int i = 0; i < RARE_TITLES.length; i++) {
+            if (!unlockedTitles.contains(RARE_TITLES[i])) {
+                lockedPool.add("TITLE:" + i);
+            }
+        }
+
+        if (lockedPool.isEmpty()) {
+            Toast.makeText(this, "🎉 すでに全アイテムをコンプリートしています！", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        xp -= cost;
+        String picked = lockedPool.get(random.nextInt(lockedPool.size()));
+        String resultMessage;
+
+        if (picked.startsWith("ICON:")) {
+            int idx = Integer.parseInt(picked.split(":")[1]);
+            unlockedIcons.add(RARE_ICONS[idx]);
+            resultMessage = "✨ レアアイコン獲得！\n\n" + RARE_ICON_NAMES[idx] + "\n\n（プロフィールから変更できます）";
+        } else {
+            int idx = Integer.parseInt(picked.split(":")[1]);
+            unlockedTitles.add(RARE_TITLES[idx]);
+            resultMessage = "👑 特別称号獲得！\n\n「" + RARE_TITLES[idx] + "」\n\n（プロフィールから変更できます）";
+        }
+
+        saveItemsAndGacha();
+        showGacha();
+
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("🎉 ガチャ結果！")
+                .setMessage(resultMessage)
+                .setPositiveButton("やったー！", null)
+                .show();
     }
 
     // 単語図鑑
@@ -961,13 +1395,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // レベルに応じた称号を取得
-    private String getTitleRank() {
+    private String getLevelTitleRank() {
         int lv = level();
         if (lv >= 30) return "👑 伝説のワードマスター";
         if (lv >= 20) return "🧙‍♂️ 叡智の大賢者";
         if (lv >= 10) return "⚔️ 言葉の熟練騎士";
         if (lv >= 5)  return "🛡️ 一人前の冒険者";
         return "🌱 見習い冒険者";
+    }
+
+    // 現在装備中の称号を取得
+    private String getCurrentTitle() {
+        if ("AUTO".equals(equippedTitle)) {
+            return getLevelTitleRank();
+        }
+        return equippedTitle;
     }
 
     // プロフィール画面
@@ -981,7 +1423,7 @@ public class MainActivity extends AppCompatActivity {
 
         TextView card = text(
                 "【 名前 】\n" + playerName
-                        + "\n\n【 称号 】\n" + getTitleRank()
+                        + "\n\n【 称号 】\n" + getCurrentTitle()
                         + "\n\n【 レベル / 累計XP 】\nLv." + level() + "  (" + xp + " XP)"
                         + "\n\n【 連続ログイン 】\n🔥 " + loginStreak + " 日目"
                         + "\n\n【 冒険の目標 】\n「" + playerGoal + "」",
@@ -996,6 +1438,11 @@ public class MainActivity extends AppCompatActivity {
         root.addView(editIconBtn);
         editIconBtn.setOnClickListener(v -> showIconSelectDialog());
 
+        Button editTitleBtn = makeButton("👑 称号を変更する");
+        editTitleBtn.setBackground(round(PURPLE, 18));
+        root.addView(editTitleBtn);
+        editTitleBtn.setOnClickListener(v -> showTitleSelectDialog());
+
         Button editNameBtn = makeButton("✏️ 名前を変更する");
         root.addView(editNameBtn);
         editNameBtn.setOnClickListener(v -> showEditDialog("名前を入力", playerName, true));
@@ -1007,27 +1454,60 @@ public class MainActivity extends AppCompatActivity {
         addBackButton();
     }
 
-    // アイコン選択用のポップアップ画面
+    // アイコン選択用のポップアップ画面（基本アイコン＋ガチャ解放レアアイコン）
     private void showIconSelectDialog() {
-        String[] icons = {
-                "⚔️ 剣士",
-                "🧙‍♂️ 魔法使い",
-                "🛡️ 重装騎士",
-                "🏹 弓使い",
-                "🥷 忍者",
-                "👑 王様",
-                "🐉 ドラゴン",
-                "🐱 ネコ冒険者"
+        List<String> displayList = new ArrayList<>();
+        List<String> emojiList = new ArrayList<>();
+
+        String[] baseNames = {
+                "⚔️ 剣士", "🧙‍♂️ 魔法使い", "🛡️ 重装騎士", "🏹 弓使い",
+                "🥷 忍者", "👑 王様", "🐉 ドラゴン", "🐱 ネコ冒険者"
         };
-        String[] iconEmojis = {"⚔️", "🧙‍♂️", "🛡️", "🏹", "🥷", "👑", "🐉", "🐱"};
+        String[] baseEmojis = {"⚔️", "🧙‍♂️", "🛡️", "🏹", "🥷", "👑", "🐉", "🐱"};
+
+        Collections.addAll(displayList, baseNames);
+        Collections.addAll(emojiList, baseEmojis);
+
+        // ガチャで解放済みのレアアイコンを追加
+        for (int i = 0; i < RARE_ICONS.length; i++) {
+            if (unlockedIcons.contains(RARE_ICONS[i])) {
+                displayList.add("【レア】" + RARE_ICON_NAMES[i]);
+                emojiList.add(RARE_ICONS[i]);
+            }
+        }
 
         new android.app.AlertDialog.Builder(this)
                 .setTitle("アイコンを選択")
-                .setItems(icons, (dialog, which) -> {
-                    playerIcon = iconEmojis[which];
+                .setItems(displayList.toArray(new String[0]), (dialog, which) -> {
+                    playerIcon = emojiList.get(which);
                     prefs.edit().putString("playerIcon", playerIcon).apply();
                     showProfile();
                     Toast.makeText(this, "アイコンを変更しました！", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("キャンセル", null)
+                .show();
+    }
+
+    // 称号選択用のポップアップ画面（レベル称号＋ガチャ解放特別称号）
+    private void showTitleSelectDialog() {
+        List<String> displayList = new ArrayList<>();
+        List<String> valueList = new ArrayList<>();
+
+        displayList.add("自動（レベル称号：" + getLevelTitleRank() + "）");
+        valueList.add("AUTO");
+
+        for (String title : unlockedTitles) {
+            displayList.add("【特別】" + title);
+            valueList.add(title);
+        }
+
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("称号を選択")
+                .setItems(displayList.toArray(new String[0]), (dialog, which) -> {
+                    equippedTitle = valueList.get(which);
+                    prefs.edit().putString("equippedTitle", equippedTitle).apply();
+                    showProfile();
+                    Toast.makeText(this, "称号を変更しました！", Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton("キャンセル", null)
                 .show();
