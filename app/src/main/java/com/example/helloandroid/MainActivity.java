@@ -596,22 +596,22 @@ public class MainActivity extends AppCompatActivity {
         if (questName.contains("FOREST")) {
 
             enemies = new Enemy[]{
-                    new Enemy("スライム", R.drawable.slime, 30),
-                    new Enemy("ちびモンスター", R.drawable.chibi_, 30)
+                    new Enemy("スライムマスコット", R.drawable.slime, 30),
+                    new Enemy("紅蓮のチビドラゴン", R.drawable.chibi_, 30)
             };
 
         } else if (questName.contains("CAVE")) {
 
             enemies = new Enemy[]{
-                    new Enemy("ゴースト", R.drawable.ghost, 30),
-                    new Enemy("オバア", R.drawable.obaa, 30)
+                    new Enemy("ネオンゴーストスライム", R.drawable.ghost, 30),
+                    new Enemy("守護おばあちゃん", R.drawable.obaa, 30)
             };
 
         } else if (questName.contains("CASTLE")) {
 
             enemies = new Enemy[]{
-                    new Enemy("サムライ", R.drawable.samurai, 40),
-                    new Enemy("キング", R.drawable.king, 50)
+                    new Enemy("ゾンビ侍", R.drawable.samurai, 40),
+                    new Enemy("冥王レンデロス", R.drawable.king, 50)
             };
 
         } else {
