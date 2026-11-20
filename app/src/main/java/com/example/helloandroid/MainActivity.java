@@ -1,5 +1,6 @@
 package com.example.helloandroid;
 
+import android.widget.ImageView;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.content.SharedPreferences;
@@ -51,8 +52,11 @@ public class MainActivity extends AppCompatActivity {
     private TextView enemyText, enemyHpText;
     private ProgressBar enemyHpBar;
 
+    // 敵の画像
+    private ImageView enemyImageView;
+    private int enemyImageRes;
+
     private String enemyName = "モンスター";
-    private String enemyEmoji = "👾";
 
     private int enemyHp;
     private int enemyMaxHp;
@@ -571,6 +575,62 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // 敵のデータ
+    private static class Enemy {
+        String name;
+        int imageRes;
+        int maxHp;
+
+        Enemy(String name, int imageRes, int maxHp) {
+            this.name = name;
+            this.imageRes = imageRes;
+            this.maxHp = maxHp;
+        }
+    }
+
+    // クエストに応じてランダムに敵を選択
+    private void selectRandomEnemy() {
+
+        Enemy[] enemies;
+
+        if (questName.contains("FOREST")) {
+
+            enemies = new Enemy[]{
+                    new Enemy("スライム", R.drawable.slime, 30),
+                    new Enemy("ちびモンスター", R.drawable.chibi_, 30)
+            };
+
+        } else if (questName.contains("CAVE")) {
+
+            enemies = new Enemy[]{
+                    new Enemy("ゴースト", R.drawable.ghost, 30),
+                    new Enemy("オバア", R.drawable.obaa, 30)
+            };
+
+        } else if (questName.contains("CASTLE")) {
+
+            enemies = new Enemy[]{
+                    new Enemy("サムライ", R.drawable.samurai, 40),
+                    new Enemy("キング", R.drawable.king, 50)
+            };
+
+        } else {
+
+            enemies = new Enemy[]{
+                    new Enemy("キング", R.drawable.king, 50)
+            };
+        }
+
+        // ランダムに1体選択
+        Enemy selected = enemies[random.nextInt(enemies.length)];
+
+        // 敵の情報を設定
+        enemyName = selected.name;
+        enemyImageRes = selected.imageRes;
+        enemyMaxHp = selected.maxHp;
+        enemyHp = enemyMaxHp;
+    }
+
     private void startQuest(int start, int end, int count) {
         playSound(R.raw.game_start);
         index = 0;
@@ -580,25 +640,11 @@ public class MainActivity extends AppCompatActivity {
         sessionXp = 0;
         answered = false;
 
-        // クエストごとに敵を設定
-        if (questName.contains("FOREST")) {
-            enemyName = "スライム";
-            enemyEmoji = "🟢";
-        } else if (questName.contains("CAVE")) {
-            enemyName = "コウモリ";
-            enemyEmoji = "🦇";
-        } else if (questName.contains("CASTLE")) {
-            enemyName = "ゴーレム";
-            enemyEmoji = "🗿";
-        } else if (questName.contains("BOSS")) {
-            enemyName = "ドラゴン";
-            enemyEmoji = "🐉";
-        }
-
-// 敵のHPを初期化
-        enemyMaxHp = questName.contains("BOSS") ? 50 : 30;
-        enemyHp = enemyMaxHp;
+        // 討伐数を初期化
         enemiesDefeated = 0;
+
+// 最初の敵をランダムに選択
+        selectRandomEnemy();
 
         questionOrder = new ArrayList<>();
 
@@ -629,10 +675,32 @@ public class MainActivity extends AppCompatActivity {
         statsText.setBackground(round(PANEL, 18));
         root.addView(statsText, fullWidth());
 
-        // 敵の表示
-        enemyText = text("", 30, WHITE);
-        enemyText.setPadding(0, 16, 0, 4);
+        // 敵の名前
+        enemyText = text("", 24, WHITE);
+        enemyText.setPadding(0, 12, 0, 4);
         root.addView(enemyText, fullWidth());
+
+// 敵の画像
+        enemyImageView = new ImageView(this);
+
+        enemyImageView.setScaleType(
+                ImageView.ScaleType.FIT_CENTER
+        );
+
+// 画像の表示サイズ（160dp）
+        int imageHeight = (int) (
+                160 * getResources().getDisplayMetrics().density
+        );
+
+        LinearLayout.LayoutParams imageParams =
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        imageHeight
+                );
+
+        imageParams.setMargins(0, 8, 0, 8);
+
+        root.addView(enemyImageView, imageParams);
 
 // 敵のHP表示
         enemyHpText = text("", 15, GOLD);
@@ -731,9 +799,9 @@ public class MainActivity extends AppCompatActivity {
     private void showQuestion() {
         answered = false;
 
-        // 前の問題で敵を倒していたら復活
+        // 前の問題で敵を倒していたら新しい敵を出現させる
         if (enemyHp <= 0) {
-            enemyHp = enemyMaxHp;
+            selectRandomEnemy();
         }
 
         updateEnemyDisplay();
@@ -947,23 +1015,32 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ステータス更新
-    // 敵のHP表示を更新
+    // 敵の表示を更新
     private void updateEnemyDisplay() {
+
         if (enemyText == null ||
                 enemyHpText == null ||
-                enemyHpBar == null) return;
+                enemyHpBar == null ||
+                enemyImageView == null) return;
 
+        // 敵の画像を更新
+        enemyImageView.setImageResource(enemyImageRes);
+
+        // 敵の名前を更新
         if (enemyHp <= 0) {
             enemyText.setText("💀 " + enemyName + "を倒した！");
         } else {
-            enemyText.setText(enemyEmoji + " " + enemyName);
+            enemyText.setText("⚔ " + enemyName);
         }
 
+        // HPの文字を更新
         enemyHpText.setText(
                 "敵のHP：" + enemyHp + " / " + enemyMaxHp
                         + "  討伐数：" + enemiesDefeated
         );
 
+        // HPバーを更新
+        enemyHpBar.setMax(enemyMaxHp);
         enemyHpBar.setProgress(enemyHp);
     }
     private void updateStats() {
