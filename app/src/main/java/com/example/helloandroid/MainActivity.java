@@ -37,6 +37,7 @@ public class MainActivity extends AppCompatActivity {
     private final int WHITE = Color.rgb(245, 245, 255);
     private final int TEAL = Color.rgb(35, 125, 91);
 
+    private MediaPlayer soundPlayer;
     private final Random random = new Random();
     private SharedPreferences prefs;
     private LinearLayout root;
@@ -182,6 +183,7 @@ public class MainActivity extends AppCompatActivity {
         return d;
     }
 
+    // 通常のボタン（クリック音あり）
     // 枠線付きの角丸背景
     private GradientDrawable roundWithStroke(int color, int radius, int strokeColor, int strokeWidth) {
         GradientDrawable d = new GradientDrawable();
@@ -192,7 +194,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private Button makeButton(String label) {
-        Button b = new Button(this);
+        return makeButton(label, true);
+    }
+
+    // クリック音の有無を指定できるボタン
+    private Button makeButton(String label, boolean clickSound) {
+        Button b = new androidx.appcompat.widget.AppCompatButton(this) {
+            @Override
+            public boolean performClick() {
+                if (clickSound) {
+                    playSound(R.raw.click);
+                }
+                return super.performClick();
+            }
+        };
+
         b.setText(label);
         b.setTextSize(15);
         b.setTextColor(WHITE);
@@ -202,16 +218,33 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout.LayoutParams p = fullWidth();
         p.setMargins(0, 6, 0, 6);
         b.setLayoutParams(p);
+
         return b;
     }
 
     // 効果音を再生する
+    // 効果音を再生する
     private void playSound(int soundId) {
-        MediaPlayer mp = MediaPlayer.create(this, soundId);
 
-        if (mp != null) {
-            mp.setOnCompletionListener(player -> player.release());
-            mp.start();
+        // 前の音を停止
+        if (soundPlayer != null) {
+            soundPlayer.release();
+            soundPlayer = null;
+        }
+
+        soundPlayer = MediaPlayer.create(this, soundId);
+        android.util.Log.d("WordQuestSound",
+                getResources().getResourceEntryName(soundId)
+                        + (soundPlayer == null ? " 読み込み失敗" : " 読み込み成功"));
+        if (soundPlayer != null) {
+            soundPlayer.setOnCompletionListener(mp -> {
+                mp.release();
+                if (soundPlayer == mp) {
+                    soundPlayer = null;
+                }
+            });
+
+            soundPlayer.start();
         }
     }
 
@@ -529,7 +562,7 @@ public class MainActivity extends AppCompatActivity {
         label.setBackground(round(PANEL, 18));
         root.addView(label, fullWidth());
 
-        Button b = makeButton("このクエストに挑戦 →");
+        Button b = makeButton("このクエストに挑戦 →", false);
         root.addView(b);
 
         b.setOnClickListener(v -> {
@@ -539,6 +572,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startQuest(int start, int end, int count) {
+        playSound(R.raw.game_start);
         index = 0;
         lives = 3;
         streak = 0;
@@ -637,7 +671,7 @@ public class MainActivity extends AppCompatActivity {
 
         for (int i = 0; i < 4; i++) {
             final int selected = i;
-            answerButtons[i] = makeButton("");
+            answerButtons[i] = makeButton("", false);
             root.addView(answerButtons[i]);
             answerButtons[i].setOnClickListener(
                     v -> checkAnswer(selected)
