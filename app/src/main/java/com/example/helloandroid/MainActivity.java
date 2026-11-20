@@ -10,6 +10,7 @@ import android.view.Gravity;
 import android.view.SoundEffectConstants;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -42,6 +43,17 @@ public class MainActivity extends AppCompatActivity {
     private TextView feedbackText, progressText;
     private Button[] answerButtons;
     private Button nextButton;
+
+    // 敵の情報
+    private TextView enemyText, enemyHpText;
+    private ProgressBar enemyHpBar;
+
+    private String enemyName = "モンスター";
+    private String enemyEmoji = "👾";
+
+    private int enemyHp;
+    private int enemyMaxHp;
+    private int enemiesDefeated;
 
     private List<Integer> questionOrder = new ArrayList<>();
     private String[] options = new String[4];
@@ -374,6 +386,26 @@ public class MainActivity extends AppCompatActivity {
         sessionXp = 0;
         answered = false;
 
+        // クエストごとに敵を設定
+        if (questName.contains("FOREST")) {
+            enemyName = "スライム";
+            enemyEmoji = "🟢";
+        } else if (questName.contains("CAVE")) {
+            enemyName = "コウモリ";
+            enemyEmoji = "🦇";
+        } else if (questName.contains("CASTLE")) {
+            enemyName = "ゴーレム";
+            enemyEmoji = "🗿";
+        } else if (questName.contains("BOSS")) {
+            enemyName = "ドラゴン";
+            enemyEmoji = "🐉";
+        }
+
+// 敵のHPを初期化
+        enemyMaxHp = questName.contains("BOSS") ? 50 : 30;
+        enemyHp = enemyMaxHp;
+        enemiesDefeated = 0;
+
         questionOrder = new ArrayList<>();
 
         int safeEnd = Math.min(end, words.length - 1);
@@ -402,6 +434,31 @@ public class MainActivity extends AppCompatActivity {
         statsText.setPadding(12, 14, 12, 14);
         statsText.setBackground(round(PANEL, 18));
         root.addView(statsText, fullWidth());
+
+        // 敵の表示
+        enemyText = text("", 30, WHITE);
+        enemyText.setPadding(0, 16, 0, 4);
+        root.addView(enemyText, fullWidth());
+
+// 敵のHP表示
+        enemyHpText = text("", 15, GOLD);
+        root.addView(enemyHpText, fullWidth());
+
+// 敵のHPバー
+        enemyHpBar = new ProgressBar(
+                this, null,
+                android.R.attr.progressBarStyleHorizontal
+        );
+
+        enemyHpBar.setMax(enemyMaxHp);
+
+        LinearLayout.LayoutParams hpParams = fullWidth();
+        hpParams.setMargins(0, 6, 0, 6);
+
+        root.addView(enemyHpBar, hpParams);
+
+// 敵の表示を更新
+        updateEnemyDisplay();
 
         progressText = text("", 15, GOLD);
         progressText.setPadding(0, 18, 0, 10);
@@ -459,6 +516,14 @@ public class MainActivity extends AppCompatActivity {
     // 問題を表示
     private void showQuestion() {
         answered = false;
+
+        // 前の問題で敵を倒していたら復活
+        if (enemyHp <= 0) {
+            enemyHp = enemyMaxHp;
+        }
+
+        updateEnemyDisplay();
+
         int wi = questionOrder.get(index);
 
         wordText.setText(words[wi][0]);
@@ -573,6 +638,25 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ステータス更新
+    // 敵のHP表示を更新
+    private void updateEnemyDisplay() {
+        if (enemyText == null ||
+                enemyHpText == null ||
+                enemyHpBar == null) return;
+
+        if (enemyHp <= 0) {
+            enemyText.setText("💀 " + enemyName + "を倒した！");
+        } else {
+            enemyText.setText(enemyEmoji + " " + enemyName);
+        }
+
+        enemyHpText.setText(
+                "敵のHP：" + enemyHp + " / " + enemyMaxHp
+                        + "  討伐数：" + enemiesDefeated
+        );
+
+        enemyHpBar.setProgress(enemyHp);
+    }
     private void updateStats() {
         String hearts = "";
 
@@ -641,6 +725,7 @@ public class MainActivity extends AppCompatActivity {
 
         TextView result = text(
                 "正解数：" + correct + " / " + total
+                        + "\n\n倒した敵：" + enemiesDefeated + "体"
                         + "\n\n獲得 XP：" + sessionXp
                         + "\n\n総 XP：" + xp
                         + "\n\nレベル：" + level()
