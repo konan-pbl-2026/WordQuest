@@ -621,8 +621,22 @@ public class MainActivity extends AppCompatActivity {
             };
         }
 
-        // ランダムに1体選択
-        Enemy selected = enemies[random.nextInt(enemies.length)];
+        // 倒した直前の敵を除いて、次の敵の候補を作る
+        List<Enemy> candidates = new ArrayList<>();
+
+        for (Enemy enemy : enemies) {
+            if (enemiesDefeated == 0 || enemy.imageRes != enemyImageRes) {
+                candidates.add(enemy);
+            }
+        }
+
+// 敵が1種類だけの場合は、同じ敵を再登場させる
+        if (candidates.isEmpty()) {
+            Collections.addAll(candidates, enemies);
+        }
+
+// 残った候補からランダムに1体選択
+        Enemy selected = candidates.get(random.nextInt(candidates.size()));
 
         // 敵の情報を設定
         enemyName = selected.name;
