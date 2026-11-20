@@ -837,7 +837,19 @@ public class MainActivity extends AppCompatActivity {
         int wi = questionOrder.get(index);
 
         if (options[selected].equals(words[wi][1])) {
-            playSound(R.raw.correct); // 正解音を再生
+            playSound(R.raw.correct);
+
+            // 敵に10ダメージ！
+            int damage = 10;
+            enemyHp -= damage;
+
+            if (enemyHp <= 0) {
+                enemyHp = 0;
+                enemiesDefeated++;
+            }
+
+            // 敵のHP表示を更新
+            updateEnemyDisplay();
 
             correct++;
             totalCorrect++;
@@ -860,6 +872,8 @@ public class MainActivity extends AppCompatActivity {
 
             feedbackText.setText(
                     "✨ 正解！ +" + earned + " XP"
+                            + "\n⚔ 敵に10ダメージ！"
+                            + (enemyHp <= 0 ? "\n💀 敵を倒した！" : "")
                             + (streak % 3 == 0 ? " 🔥 COMBO!" : "")
             );
 
