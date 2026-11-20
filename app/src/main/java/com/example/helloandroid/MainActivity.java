@@ -25,8 +25,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
 
-
-//実験
 public class MainActivity extends AppCompatActivity {
 
     private String[][] words;
@@ -53,20 +51,25 @@ public class MainActivity extends AppCompatActivity {
     private boolean answered;
     private String currentScreen = "home";
     private String questName = "冒険";
+
     // ログインボーナス
     private String lastLoginDate = "";
     private int loginStreak = 0;
     private boolean loginBonusReceived = false;
+
     // デイリーミッション
     private String missionDate = "";
-
     private boolean missionForest = false;
     private boolean missionCave = false;
     private boolean missionCastle = false;
     private boolean missionBoss = false;
     private boolean missionStreak = false;
-
     private int dailyStreak = 0;
+
+    // プロフィール
+    private String playerName = "名もなき冒険者";
+    private String playerGoal = "毎日コツコツ単語を覚える！";
+    private String playerIcon = "⚔️";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,30 +84,25 @@ public class MainActivity extends AppCompatActivity {
 
         lastLoginDate = prefs.getString("lastLoginDate", "");
         loginStreak = prefs.getInt("loginStreak", 0);
-        loginBonusReceived =
-                prefs.getBoolean("loginBonusReceived", false);
+        loginBonusReceived = prefs.getBoolean("loginBonusReceived", false);
 
-// デイリーミッション読み込み
+        // デイリーミッション読み込み
         missionDate = prefs.getString("missionDate", "");
-
         missionForest = prefs.getBoolean("missionForest", false);
         missionCave = prefs.getBoolean("missionCave", false);
         missionCastle = prefs.getBoolean("missionCastle", false);
         missionBoss = prefs.getBoolean("missionBoss", false);
         missionStreak = prefs.getBoolean("missionStreak", false);
-
         dailyStreak = prefs.getInt("dailyStreak", 0);
+
+        // プロフィール読み込み
+        playerName = prefs.getString("playerName", "名もなき冒険者");
+        playerGoal = prefs.getString("playerGoal", "毎日コツコツ単語を覚える！");
+        playerIcon = prefs.getString("playerIcon", "⚔️");
 
         checkLoginBonus();
         checkMissionReset();
-
         loadWordsFromCSV();
-
-        prefs = getSharedPreferences("WordQuestData", MODE_PRIVATE);
-        xp = prefs.getInt("xp", 0);
-        totalCorrect = prefs.getInt("totalCorrect", 0);
-        totalAnswered = prefs.getInt("totalAnswered", 0);
-        bestStreak = prefs.getInt("bestStreak", 0);
 
         showHome();
     }
@@ -197,6 +195,7 @@ public class MainActivity extends AppCompatActivity {
                 .putInt("bestStreak", bestStreak)
                 .apply();
     }
+
     // デイリーミッションの日付確認
     private String getMissionToday() {
         return new java.text.SimpleDateFormat(
@@ -207,11 +206,9 @@ public class MainActivity extends AppCompatActivity {
 
     // 日付が変わったらミッションをリセット
     private void checkMissionReset() {
-
         String today = getMissionToday();
 
         if (!today.equals(missionDate)) {
-
             missionDate = today;
 
             missionForest = false;
@@ -219,7 +216,6 @@ public class MainActivity extends AppCompatActivity {
             missionCastle = false;
             missionBoss = false;
             missionStreak = false;
-
             dailyStreak = 0;
 
             saveMissionData();
@@ -228,7 +224,6 @@ public class MainActivity extends AppCompatActivity {
 
     // ミッションデータ保存
     private void saveMissionData() {
-
         prefs.edit()
                 .putString("missionDate", missionDate)
                 .putBoolean("missionForest", missionForest)
@@ -239,22 +234,20 @@ public class MainActivity extends AppCompatActivity {
                 .putInt("dailyStreak", dailyStreak)
                 .apply();
     }
+
     // ログインボーナスの日付確認
     private void checkLoginBonus() {
-
         String today = new java.text.SimpleDateFormat(
                 "yyyyMMdd",
                 java.util.Locale.JAPAN
         ).format(new java.util.Date());
 
         if (!today.equals(lastLoginDate)) {
-
             String yesterday = new java.text.SimpleDateFormat(
                     "yyyyMMdd",
                     java.util.Locale.JAPAN
             ).format(new java.util.Date(
-                    System.currentTimeMillis()
-                            - 24 * 60 * 60 * 1000
+                    System.currentTimeMillis() - 24 * 60 * 60 * 1000
             ));
 
             if (yesterday.equals(lastLoginDate)) {
@@ -282,8 +275,25 @@ public class MainActivity extends AppCompatActivity {
     private void showHome() {
         setupScreen("home");
 
+        // 左上にプロフィールボタンを配置
+        Button profile = makeButton(playerIcon + " " + playerName);
+        profile.setTextSize(14);
+        profile.setPadding(24, 12, 24, 12);
+        profile.setBackground(round(PANEL, 30));
+
+        LinearLayout.LayoutParams profileParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        profileParams.gravity = Gravity.START;
+        profileParams.setMargins(0, 0, 0, 10);
+        profile.setLayoutParams(profileParams);
+
+        root.addView(profile);
+        profile.setOnClickListener(v -> showProfile());
+
         TextView castle = text("🏰", 65, GOLD);
-        castle.setPadding(0, 35, 0, 20);
+        castle.setPadding(0, 15, 0, 20);
         root.addView(castle);
 
         addTitle("⚔ WORD QUEST ⚔",
@@ -313,16 +323,15 @@ public class MainActivity extends AppCompatActivity {
         Button record = makeButton("🏆 学習記録・実績");
         root.addView(record);
         record.setOnClickListener(v -> showStatus());
+
         Button login = makeButton("🎁 ログインボーナス");
         login.setBackground(round(PURPLE, 20));
         root.addView(login);
-
         login.setOnClickListener(v -> showLoginBonus());
-        // デイリーミッションボタン
+
         Button daily = makeButton("🎯 デイリーミッション");
         daily.setBackground(round(PURPLE, 20));
         root.addView(daily);
-
         daily.setOnClickListener(v -> showDailyMissions());
     }
 
@@ -331,10 +340,10 @@ public class MainActivity extends AppCompatActivity {
         setupScreen("quests");
         addTitle("🗺 QUEST SELECT", "クエストを選ぼう！");
 
-        addQuest("🌲 FOREST", "初級クエスト", 0, 13);
-        addQuest("🏔 CAVE", "中級クエスト", 1, 1000);
-        addQuest("🏰 CASTLE", "上級クエスト", 27, 39);
-        addQuest("👑 BOSS BATTLE", "全範囲から10問", 0, 39);
+        addQuest("🌲 FOREST", "初級クエスト", 1, 333);
+        addQuest("🏔 CAVE", "中級クエスト", 334, 666);
+        addQuest("🏰 CASTLE", "上級クエスト", 667, 1000);
+        addQuest("👑 BOSS BATTLE", "全範囲から10問", 1, 1000);
 
         addBackButton();
     }
@@ -353,8 +362,7 @@ public class MainActivity extends AppCompatActivity {
 
         b.setOnClickListener(v -> {
             questName = title;
-            startQuest(start, end,
-                    title.contains("BOSS") ? 10 : end - start + 1);
+            startQuest(start, end, title.contains("BOSS") ? 10 : 20);
         });
     }
 
@@ -368,7 +376,8 @@ public class MainActivity extends AppCompatActivity {
 
         questionOrder = new ArrayList<>();
 
-        for (int i = start; i <= end; i++) {
+        int safeEnd = Math.min(end, words.length - 1);
+        for (int i = start; i <= safeEnd; i++) {
             questionOrder.add(i);
         }
 
@@ -446,6 +455,7 @@ public class MainActivity extends AppCompatActivity {
         root.addView(home);
         home.setOnClickListener(v -> showHome());
     }
+
     // 問題を表示
     private void showQuestion() {
         answered = false;
@@ -493,7 +503,6 @@ public class MainActivity extends AppCompatActivity {
 
     // 正誤判定
     private void checkAnswer(int selected) {
-
         if (answered) return;
 
         checkMissionReset();
@@ -508,19 +517,12 @@ public class MainActivity extends AppCompatActivity {
             correct++;
             totalCorrect++;
             streak++;
-            // デイリー7問連続正解
             dailyStreak++;
 
             if (dailyStreak >= 7 && !missionStreak) {
-
                 missionStreak = true;
-
                 xp += 30;
                 sessionXp += 30;
-
-                feedbackText.setText(
-                        "🔥 7問連続正解達成！ +30 XP"
-                );
 
                 Toast.makeText(this,
                         "🎉 デイリーミッション達成！ +30 XP",
@@ -528,14 +530,12 @@ public class MainActivity extends AppCompatActivity {
             }
 
             int earned = 10 + (streak % 3 == 0 ? 5 : 0);
-
             xp += earned;
             sessionXp += earned;
 
             feedbackText.setText(
                     "✨ 正解！ +" + earned + " XP"
-                            + (streak % 3 == 0
-                            ? " 🔥 COMBO!" : "")
+                            + (streak % 3 == 0 ? " 🔥 COMBO!" : "")
             );
 
             answerButtons[selected].setBackground(
@@ -548,8 +548,7 @@ public class MainActivity extends AppCompatActivity {
             streak = 0;
             dailyStreak = 0;
             feedbackText.setText(
-                    "💥 不正解！ 正解："
-                            + words[wi][1]
+                    "💥 不正解！ 正解：" + words[wi][1]
             );
 
             answerButtons[selected].setBackground(
@@ -602,42 +601,32 @@ public class MainActivity extends AppCompatActivity {
                 "冒険お疲れさまでした！");
 
         int total = questionOrder.size();
-        int accuracy = correct * 100 / total;
-        // クエストクリア時のデイリーミッション判定
+        int accuracy = total == 0 ? 0 : correct * 100 / total;
         boolean questCleared = lives > 0;
 
         if (questCleared) {
-
             int reward = 0;
             String message = "";
 
             if (questName.contains("FOREST") && !missionForest) {
-
                 missionForest = true;
                 reward = 20;
                 message = "🌲 初級クエスト達成！";
-
             } else if (questName.contains("CAVE") && !missionCave) {
-
                 missionCave = true;
                 reward = 30;
                 message = "🏔 中級クエスト達成！";
-
             } else if (questName.contains("CASTLE") && !missionCastle) {
-
                 missionCastle = true;
                 reward = 40;
                 message = "🏰 上級クエスト達成！";
-
             } else if (questName.contains("BOSS") && !missionBoss) {
-
                 missionBoss = true;
                 reward = 50;
                 message = "👑 ボスバトル達成！";
             }
 
             if (reward > 0) {
-
                 xp += reward;
                 sessionXp += reward;
 
@@ -677,25 +666,21 @@ public class MainActivity extends AppCompatActivity {
     // 単語図鑑
     private void showDictionary() {
         setupScreen("dictionary");
-        addTitle("📖 WORD BOOK", "英単語40語");
+        addTitle("📖 WORD BOOK", "収録単語：全 " + words.length + " 語");
+        addBackButton();
 
+        StringBuilder sb = new StringBuilder();
         for (int i = 0; i < words.length; i++) {
-            TextView t = text(
-                    (i + 1) + ". " + words[i][0]
-                            + "\n" + words[i][1],
-                    16, WHITE
-            );
-
-            t.setGravity(Gravity.START);
-            t.setPadding(14, 12, 14, 12);
-            t.setBackground(round(PANEL, 14));
-
-            LinearLayout.LayoutParams p = fullWidth();
-            p.setMargins(0, 4, 0, 4);
-            root.addView(t, p);
+            sb.append(i + 1).append(". ").append(words[i][0])
+                    .append("\n").append(words[i][1]).append("\n\n");
         }
 
-        addBackButton();
+        TextView wt = text(sb.toString(), 16, WHITE);
+        wt.setGravity(Gravity.START);
+        wt.setPadding(16, 20, 16, 20);
+        wt.setBackground(round(PANEL, 14));
+
+        root.addView(wt, fullWidth());
     }
 
     // 学習記録
@@ -742,11 +727,10 @@ public class MainActivity extends AppCompatActivity {
 
         addBackButton();
     }
+
     // デイリーミッション画面
     private void showDailyMissions() {
-
         checkMissionReset();
-
         setupScreen("daily");
 
         addTitle("🎯 DAILY MISSIONS",
@@ -774,7 +758,6 @@ public class MainActivity extends AppCompatActivity {
 
         reward.setPadding(15, 25, 15, 25);
         reward.setBackground(round(PANEL, 20));
-
         root.addView(reward, fullWidth());
 
         addBackButton();
@@ -786,7 +769,6 @@ public class MainActivity extends AppCompatActivity {
             boolean completed,
             int reward
     ) {
-
         TextView t = text(
                 (completed ? "✅ " : "🎯 ") + name
                         + "\n\n報酬：" + reward + " XP"
@@ -801,7 +783,6 @@ public class MainActivity extends AppCompatActivity {
 
         LinearLayout.LayoutParams p = fullWidth();
         p.setMargins(0, 7, 0, 7);
-
         root.addView(t, p);
     }
 
@@ -814,21 +795,19 @@ public class MainActivity extends AppCompatActivity {
             showHome();
         }
     }
+
+    // CSV読み込み
     private void loadWordsFromCSV() {
         List<String[]> tempList = new ArrayList<>();
 
         try {
-            // assetsフォルダ内の words.csv を開く
             InputStream is = getAssets().open("English Words.csv");
             BufferedReader reader = new BufferedReader(new InputStreamReader(is));
             String line;
 
-            // 1行ずつ読み込む
             while ((line = reader.readLine()) != null) {
-                // カンマで英単語と意味に分割 (2つにだけ分ける)
                 String[] parts = line.split(",", 2);
                 if (parts.length == 2) {
-                    // tempListに追加
                     tempList.add(new String[]{parts[0].trim(), parts[1].trim()});
                 }
             }
@@ -836,19 +815,17 @@ public class MainActivity extends AppCompatActivity {
 
         } catch (IOException e) {
             e.printStackTrace();
-            // 万が一読み込めなかった時のための予備データ
             tempList.add(new String[]{"error", "エラー：単語が読み込めませんでした"});
         }
 
-        // List を String[][] に変換（既存のコードをそのまま動かすため）
         words = new String[tempList.size()][2];
         for (int i = 0; i < tempList.size(); i++) {
             words[i] = tempList.get(i);
         }
     }
+
     // ログインボーナス画面
     private void showLoginBonus() {
-
         setupScreen("loginBonus");
 
         addTitle("🎁 LOGIN BONUS",
@@ -877,7 +854,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         receive.setOnClickListener(v -> {
-
             if (loginBonusReceived) return;
 
             xp += bonus;
@@ -897,5 +873,105 @@ public class MainActivity extends AppCompatActivity {
         });
 
         addBackButton();
+    }
+
+    // レベルに応じた称号を取得
+    private String getTitleRank() {
+        int lv = level();
+        if (lv >= 30) return "👑 伝説のワードマスター";
+        if (lv >= 20) return "🧙‍♂️ 叡智の大賢者";
+        if (lv >= 10) return "⚔️ 言葉の熟練騎士";
+        if (lv >= 5)  return "🛡️ 一人前の冒険者";
+        return "🌱 見習い冒険者";
+    }
+
+    // プロフィール画面
+    private void showProfile() {
+        setupScreen("profile");
+        addTitle("🪪 ADVENTURER CARD", "冒険者プロフィール");
+
+        TextView iconView = text(playerIcon, 70, GOLD);
+        iconView.setPadding(0, 10, 0, 15);
+        root.addView(iconView, fullWidth());
+
+        TextView card = text(
+                "【 名前 】\n" + playerName
+                        + "\n\n【 称号 】\n" + getTitleRank()
+                        + "\n\n【 レベル / 累計XP 】\nLv." + level() + "  (" + xp + " XP)"
+                        + "\n\n【 連続ログイン 】\n🔥 " + loginStreak + " 日目"
+                        + "\n\n【 冒険の目標 】\n「" + playerGoal + "」",
+                18, WHITE
+        );
+        card.setPadding(24, 30, 24, 30);
+        card.setBackground(round(PANEL, 22));
+        root.addView(card, fullWidth());
+
+        Button editIconBtn = makeButton("🎭 アイコンを変更する");
+        editIconBtn.setBackground(round(PURPLE, 18));
+        root.addView(editIconBtn);
+        editIconBtn.setOnClickListener(v -> showIconSelectDialog());
+
+        Button editNameBtn = makeButton("✏️ 名前を変更する");
+        root.addView(editNameBtn);
+        editNameBtn.setOnClickListener(v -> showEditDialog("名前を入力", playerName, true));
+
+        Button editGoalBtn = makeButton("🎯 目標を変更する");
+        root.addView(editGoalBtn);
+        editGoalBtn.setOnClickListener(v -> showEditDialog("目標を入力", playerGoal, false));
+
+        addBackButton();
+    }
+
+    // アイコン選択用のポップアップ画面
+    private void showIconSelectDialog() {
+        String[] icons = {
+                "⚔️ 剣士",
+                "🧙‍♂️ 魔法使い",
+                "🛡️ 重装騎士",
+                "🏹 弓使い",
+                "🥷 忍者",
+                "👑 王様",
+                "🐉 ドラゴン",
+                "🐱 ネコ冒険者"
+        };
+        String[] iconEmojis = {"⚔️", "🧙‍♂️", "🛡️", "🏹", "🥷", "👑", "🐉", "🐱"};
+
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("アイコンを選択")
+                .setItems(icons, (dialog, which) -> {
+                    playerIcon = iconEmojis[which];
+                    prefs.edit().putString("playerIcon", playerIcon).apply();
+                    showProfile();
+                    Toast.makeText(this, "アイコンを変更しました！", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("キャンセル", null)
+                .show();
+    }
+
+    // テキスト編集用のポップアップ画面
+    private void showEditDialog(String title, String currentText, boolean isName) {
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setText(currentText);
+        input.setSelection(currentText.length());
+
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(title)
+                .setView(input)
+                .setNegativeButton("キャンセル", null)
+                .setPositiveButton("保存", (dialog, which) -> {
+                    String newText = input.getText().toString().trim();
+                    if (!newText.isEmpty()) {
+                        if (isName) {
+                            playerName = newText;
+                            prefs.edit().putString("playerName", playerName).apply();
+                        } else {
+                            playerGoal = newText;
+                            prefs.edit().putString("playerGoal", playerGoal).apply();
+                        }
+                        showProfile();
+                        Toast.makeText(this, "保存しました！", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .show();
     }
 }
