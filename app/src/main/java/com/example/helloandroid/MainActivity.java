@@ -1,5 +1,6 @@
 package com.example.helloandroid;
 
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -23,6 +24,7 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
+
 
 //実験
 public class MainActivity extends AppCompatActivity {
@@ -142,6 +144,16 @@ public class MainActivity extends AppCompatActivity {
         p.setMargins(0, 6, 0, 6);
         b.setLayoutParams(p);
         return b;
+    }
+
+    // 効果音を再生する
+    private void playSound(int soundId) {
+        MediaPlayer mp = MediaPlayer.create(this, soundId);
+
+        if (mp != null) {
+            mp.setOnCompletionListener(player -> player.release());
+            mp.start();
+        }
     }
 
     private void setupScreen(String name) {
@@ -491,6 +503,8 @@ public class MainActivity extends AppCompatActivity {
         int wi = questionOrder.get(index);
 
         if (options[selected].equals(words[wi][1])) {
+            playSound(R.raw.correct); // 正解音を再生
+
             correct++;
             totalCorrect++;
             streak++;
@@ -529,6 +543,7 @@ public class MainActivity extends AppCompatActivity {
             );
 
         } else {
+            playSound(R.raw.wrong); // 不正解音を再生
             lives--;
             streak = 0;
             dailyStreak = 0;
